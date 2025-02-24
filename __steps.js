@@ -79,3 +79,21 @@
            res.send(result);
          })
      */
+    /**
+     * // this will find whether the user is a admin or not
+    app.get('/users/admin/:email', verifyToken, async(req,res)=>{
+      const email = req.params.email;
+      // from req.decoded we will get email because in AuthProvider.jsx while sending userInfo to jwt we set email there
+      if(email !== req.decoded.email){
+        return res.status(403).send({message: 'unauthorized access'})
+      }
+      const query = {email : email};
+      const user = await userCollection.findOne(query);
+      let admin = false;
+      if(user){
+        admin = user?.role === 'admin';
+      }
+      res.send({admin});
+    })
+      **then we will make a useAdmin.jsx hook in the client side
+     */
