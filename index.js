@@ -43,23 +43,34 @@ async function run() {
     const verifyToken = (req,res, next)=>{
       console.log('inside verify token', req.headers);
       if(!req.headers.authorization){
-        return res.status(401).send({message: 'forbidden access'});
+        return res.status(401).send({message: 'unauthorized access'});
       }
       const token = req.headers.authorization.split(' ')[1];
       jwt.verify(token, process.env.ACCESS_TOKEN_SECRET,(error,decoded)=>{
         if(error){
-          return res.status(401).send({message: 'forbidden access'})
+          return res.status(401).send({message: 'unauthorized access'})
         }
         req.decoded = decoded;
         next();
       })
     }
-
+    // use verify admin after verifyToken
+    // req.decoded.email can found cause this middleware is after verifyToken
+      const verifyAdmin = async(req,res, next)=>{
+      const email = req.decoded.email;
+      const query = {email: email};
+      const user =  await userCollection.findOne(query);
+      const isAdmin = user?.role === 'admin';
+      if(!isAdmin){
+        return res.status(403).send({message: 'forbidden access'});
+      }
+      next();
+    }
 
     // users related api
     
     // get users data from the database
-    app.get('/users',verifyToken, async(req,res)=>{
+      app.get('/users',verifyToken,verifyAdmin, async(req,res)=>{
       console.log(req.headers.authorization)
       const result = await userCollection.find().toArray();
       
@@ -70,7 +81,7 @@ async function run() {
       const email = req.params.email;
       // from req.decoded we will get email because in AuthProvider.jsx while sending userInfo to jwt we set email there
       if(email !== req.decoded.email){
-        return res.status(403).send({message: 'unauthorized access'})
+        return res.status(403).send({message: 'forbidden access'})
       }
       const query = {email : email};
       const user = await userCollection.findOne(query);
@@ -95,14 +106,14 @@ async function run() {
     })
     
 
-    app.delete('/users/:id', async(req,res)=>{
+    app.delete('/users/:id',verifyToken, verifyAdmin, async(req,res)=>{
       const id = req.params.id;
       const query = {_id: new ObjectId(id)};
       const result = await userCollection.deleteOne(query);
       res.send(result);
     })
     // this will make the user as a admin
-    app.patch('/users/admin/:id', async(req,res)=>{
+    app.patch('/users/admin/:id',verifyToken,verifyAdmin, async(req,res)=>{
       const id = req.params.id;
       const filter = {_id: new ObjectId(id)};
       const updateDoc = {
